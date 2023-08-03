@@ -46,7 +46,7 @@ public class SettingsTab implements ITab {
         spinnerIdleConnTimeout.setValue(settings.getIdleConnTimeout());
         spinnerTlsHandshakeTimeout.setValue(settings.getTlsHandshakeTimeout());
 
-        for (var item : settings.getFingerprints()) {
+        for (String item : settings.getFingerprints()) {
             comboBoxFingerprint.addItem(item);
         }
         comboBoxFingerprint.setSelectedItem(settings.getFingerprint());

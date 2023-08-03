@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
 
 public class BurpExtender implements IBurpExtender, IHttpListener, IExtensionStateListener {
     private PrintWriter stdout;
@@ -33,10 +34,10 @@ public class BurpExtender implements IBurpExtender, IHttpListener, IExtensionSta
         callbacks.addSuiteTab(new SettingsTab(this.settings));
 
         new Thread(() -> {
-            var err = ServerLibrary.INSTANCE.StartServer(this.settings.getAddress());
+            String err = ServerLibrary.INSTANCE.StartServer(this.settings.getAddress());
             if (!err.equals("")) {
-                var isGraceful = err.contains("Server stopped"); // server was stopped gracefully by calling StopServer()
-                var out = isGraceful ? this.stdout : this.stderr;
+                boolean isGraceful = err.contains("Server stopped"); // server was stopped gracefully by calling StopServer()
+                PrintWriter out = isGraceful ? this.stdout : this.stderr;
                 out.println(err);
                 if (!isGraceful) callbacks.unloadExtension(); // fatal error; disable the extension
             }
@@ -47,10 +48,10 @@ public class BurpExtender implements IBurpExtender, IHttpListener, IExtensionSta
     public void processHttpMessage(int toolFlag, boolean messageIsRequest, IHttpRequestResponse messageInfo) {
         if (!messageIsRequest) return;
 
-        var httpService = messageInfo.getHttpService();
-        var req = this.helpers.analyzeRequest(messageInfo.getRequest());
+        IHttpService httpService = messageInfo.getHttpService();
+        IRequestInfo req = this.helpers.analyzeRequest(messageInfo.getRequest());
 
-        var transportConfig = new TransportConfig();
+        TransportConfig transportConfig = new TransportConfig();
         transportConfig.Host = httpService.getHost();
         transportConfig.Scheme = httpService.getProtocol();
         transportConfig.Fingerprint = this.settings.getFingerprint();
@@ -59,14 +60,14 @@ public class BurpExtender implements IBurpExtender, IHttpListener, IExtensionSta
         transportConfig.HttpKeepAliveInterval = this.settings.getHttpKeepAliveInterval();
         transportConfig.IdleConnTimeout = this.settings.getIdleConnTimeout();
         transportConfig.TlsHandshakeTimeout = this.settings.getTlsHandshakeTimeout();
-        var goConfigJSON = this.gson.toJson(transportConfig);
+        String goConfigJSON = this.gson.toJson(transportConfig);
         this.stdout.println("Using config: " + goConfigJSON);
 
-        var headers = req.getHeaders();
+        List<String> headers = req.getHeaders();
         headers.add(HEADER_KEY + ": " + goConfigJSON);
 
         try {
-            var url = new URL("https://" + this.settings.getAddress());
+            URL url = new URL("https://" + this.settings.getAddress());
             messageInfo.setHttpService(helpers.buildHttpService(url.getHost(), url.getPort(), url.getProtocol()));
             messageInfo.setRequest(helpers.buildHttpMessage(headers, Arrays.copyOfRange(messageInfo.getRequest(), req.getBodyOffset(), messageInfo.getRequest().length)));
         } catch (Exception e) {
@@ -77,7 +78,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener, IExtensionSta
 
     @Override
     public void extensionUnloaded() {
-        var err = ServerLibrary.INSTANCE.StopServer();
+        String err = ServerLibrary.INSTANCE.StopServer();
         if (!err.equals("")) {
             this.stderr.println(err);
         }
